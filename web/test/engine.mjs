@@ -10,7 +10,7 @@ const vite = await createServer({ server: { middlewareMode: true }, appType: 'cu
 
 const { computeStats } = await vite.ssrLoadModule('/src/engine/stats.js');
 const { buildPlan, readForm } = await vite.ssrLoadModule('/src/engine/planner.js');
-const { DEFAULT_STATE } = await vite.ssrLoadModule('/src/store/store.jsx');
+const { DEFAULT_STATE } = await vite.ssrLoadModule('/src/store/defaults.js');
 const { PROBLEMS } = await vite.ssrLoadModule('/src/data/problems.js');
 const { levelFromXp } = await vite.ssrLoadModule('/src/engine/xp.js');
 

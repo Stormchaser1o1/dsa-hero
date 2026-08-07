@@ -1,67 +1,72 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { todayKey } from '../lib/date';
+import * as repo from '../db/repo';
+import {
+  exec,
+  exportBytes,
+  importBytes,
+  isOpen,
+  openDatabase,
+  resetDatabase,
+  save,
+} from '../db/database';
 
-const KEY = 'dsa-hero-state-v1';
+import { BOX_DAYS, DEFAULT_STATE } from './defaults';
 
-export const DEFAULT_STATE = {
-  version: 1,
-  startedOn: todayKey(),
-  /** One row per logged attempt. Append-only — the history is the point. */
-  attempts: [],
-  /** dateKey → { problemIds, generatedAt, kind } */
-  plans: {},
-  /** problemId → { due, box } — Leitner-style spaced re-solves. */
-  revisions: {},
-  goals: { weekday: 2, weekend: 4 },
-  /** Achievement ids the user has already been shown, so new ones can pop. */
-  seenAchievements: [],
-  profile: { name: 'DSA Hero' },
-};
-
-function load() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return DEFAULT_STATE;
-    const parsed = JSON.parse(raw);
-    if (!parsed || parsed.version !== 1) return DEFAULT_STATE;
-    // Merge so a state written by an older build still gets new fields.
-    return {
-      ...DEFAULT_STATE,
-      ...parsed,
-      goals: { ...DEFAULT_STATE.goals, ...(parsed.goals ?? {}) },
-      profile: { ...DEFAULT_STATE.profile, ...(parsed.profile ?? {}) },
-    };
-  } catch {
-    return DEFAULT_STATE;
-  }
-}
-
-function save(state) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(state));
-  } catch {
-    /* quota or private mode — the app still works for this session */
-  }
-}
+export { DEFAULT_STATE };
 
 const StoreContext = createContext(null);
 
-/** Leitner boxes, in days. A clean solve promotes; a miss resets to box 0. */
-const BOX_DAYS = [1, 3, 7, 16, 30, 60];
+function addDaysKey(key, n) {
+  const [y, m, d] = key.split('-').map(Number);
+  const date = new Date(y, m - 1, d + n);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+    date.getDate()
+  ).padStart(2, '0')}`;
+}
 
 export function StoreProvider({ children }) {
-  const [state, setState] = useState(load);
+  const [state, setState] = useState(DEFAULT_STATE);
+  const [status, setStatus] = useState({ ready: false, error: null, migrated: false });
 
+  // Open SQLite, lift any legacy localStorage data, then hydrate.
   useEffect(() => {
-    save(state);
-  }, [state]);
+    let cancelled = false;
+    (async () => {
+      try {
+        await openDatabase();
+        const migrated = repo.migrateLegacyState();
+        const loaded = repo.loadState();
+        if (cancelled) return;
+        setState(loaded);
+        setStatus({ ready: true, error: null, migrated });
+      } catch (err) {
+        if (cancelled) return;
+        // Private mode, no IndexedDB, or no WASM: the app still runs, it just
+        // will not remember this session.
+        console.warn('DSA HERO: database unavailable, running in memory —', err?.message ?? err);
+        setStatus({ ready: false, error: err?.message ?? String(err), migrated: false });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const update = useCallback((fn) => setState((prev) => fn(prev)), []);
+  /** Writes go to SQLite first, then mirror into React state. */
+  const persist = useCallback((write) => {
+    if (!isOpen()) return;
+    try {
+      write();
+    } catch (err) {
+      console.warn('DSA HERO: write failed —', err?.message ?? err);
+    }
+  }, []);
 
   const logAttempt = useCallback(
     (entry) => {
       const stamp = entry.date ?? todayKey();
-      update((prev) => {
+      setState((prev) => {
         const attempt = {
           id: `${stamp}-${entry.problemId}-${prev.attempts.length + 1}`,
           date: stamp,
@@ -76,81 +81,115 @@ export function StoreProvider({ children }) {
           mode: entry.mode ?? 'practice',
         };
 
-        // Spaced re-solve scheduling.
         const solvedClean = entry.outcome === 'solved-clean';
-        const solved = solvedClean || entry.outcome.startsWith('solved');
         const prevBox = prev.revisions[entry.problemId]?.box ?? -1;
         const box = solvedClean ? Math.min(prevBox + 1, BOX_DAYS.length - 1) : 0;
-        const revisions = solved
-          ? {
-              ...prev.revisions,
-              [entry.problemId]: { box, due: addDaysKey(stamp, BOX_DAYS[box]) },
-            }
-          : { ...prev.revisions, [entry.problemId]: { box: 0, due: addDaysKey(stamp, 1) } };
+        const revision = { box, due: addDaysKey(stamp, BOX_DAYS[box]) };
 
-        return { ...prev, attempts: [...prev.attempts, attempt], revisions };
+        persist(() => repo.insertAttempt(attempt, revision));
+
+        return {
+          ...prev,
+          attempts: [...prev.attempts, attempt],
+          revisions: { ...prev.revisions, [entry.problemId]: revision },
+        };
       });
     },
-    [update]
+    [persist]
   );
 
   const setPlan = useCallback(
-    (dateKey, problemIds, kind) =>
-      update((prev) => ({
+    (dateKey, items, kind) => {
+      persist(() => repo.savePlan(dateKey, items, kind));
+      setState((prev) => ({
         ...prev,
         plans: {
           ...prev.plans,
-          [dateKey]: { problemIds, kind, generatedAt: new Date().toISOString() },
+          [dateKey]: {
+            kind,
+            generatedAt: new Date().toISOString(),
+            problemIds: items.map((i) => i.problemId),
+            roles: items.map((i) => i.role),
+            reasons: items.map((i) => i.reason),
+          },
         },
-      })),
-    [update]
+      }));
+    },
+    [persist]
   );
 
   const setGoals = useCallback(
-    (goals) => update((prev) => ({ ...prev, goals: { ...prev.goals, ...goals } })),
-    [update]
+    (goals) =>
+      setState((prev) => {
+        const next = { ...prev.goals, ...goals };
+        persist(() => repo.putSetting('goals', next));
+        return { ...prev, goals: next };
+      }),
+    [persist]
   );
 
   const setProfile = useCallback(
-    (profile) => update((prev) => ({ ...prev, profile: { ...prev.profile, ...profile } })),
-    [update]
+    (profile) =>
+      setState((prev) => {
+        const next = { ...prev.profile, ...profile };
+        persist(() => repo.putSetting('profile', next));
+        return { ...prev, profile: next };
+      }),
+    [persist]
   );
 
   const markAchievementsSeen = useCallback(
     (ids) =>
-      update((prev) => ({
-        ...prev,
-        seenAchievements: [...new Set([...prev.seenAchievements, ...ids])],
-      })),
-    [update]
+      setState((prev) => {
+        const next = [...new Set([...prev.seenAchievements, ...ids])];
+        persist(() => repo.putSetting('seenAchievements', next));
+        return { ...prev, seenAchievements: next };
+      }),
+    [persist]
   );
 
   const updateNote = useCallback(
-    (attemptId, notes) =>
-      update((prev) => ({
+    (attemptId, notes) => {
+      persist(() => repo.updateNote(attemptId, notes));
+      setState((prev) => ({
         ...prev,
         attempts: prev.attempts.map((a) => (a.id === attemptId ? { ...a, notes } : a)),
-      })),
-    [update]
+      }));
+    },
+    [persist]
   );
 
   const deleteAttempt = useCallback(
-    (attemptId) =>
-      update((prev) => ({ ...prev, attempts: prev.attempts.filter((a) => a.id !== attemptId) })),
-    [update]
+    (attemptId) => {
+      persist(() => repo.deleteAttempt(attemptId));
+      setState((prev) => ({ ...prev, attempts: prev.attempts.filter((a) => a.id !== attemptId) }));
+    },
+    [persist]
   );
 
-  const resetAll = useCallback(() => setState({ ...DEFAULT_STATE, startedOn: todayKey() }), []);
-
-  const importState = useCallback((json) => {
-    const parsed = typeof json === 'string' ? JSON.parse(json) : json;
-    if (!parsed || !Array.isArray(parsed.attempts)) throw new Error('Not a DSA Hero backup file.');
-    setState({ ...DEFAULT_STATE, ...parsed, version: 1 });
+  const resetAll = useCallback(async () => {
+    if (isOpen()) await resetDatabase();
+    setState({ ...DEFAULT_STATE, startedOn: todayKey() });
   }, []);
+
+  /** Replaces the database from an exported .sqlite file. */
+  const importDatabase = useCallback(async (arrayBuffer) => {
+    await importBytes(arrayBuffer);
+    setState(repo.loadState());
+  }, []);
+
+  const exportDatabase = useCallback(async () => {
+    await save();
+    return exportBytes();
+  }, []);
+
+  /** Read-only escape hatch for the SQL console. */
+  const runSql = useCallback((sql) => exec(sql), []);
 
   const value = useMemo(
     () => ({
       state,
+      status,
       logAttempt,
       setPlan,
       setGoals,
@@ -159,10 +198,13 @@ export function StoreProvider({ children }) {
       deleteAttempt,
       markAchievementsSeen,
       resetAll,
-      importState,
+      importDatabase,
+      exportDatabase,
+      runSql,
     }),
     [
       state,
+      status,
       logAttempt,
       setPlan,
       setGoals,
@@ -171,19 +213,13 @@ export function StoreProvider({ children }) {
       deleteAttempt,
       markAchievementsSeen,
       resetAll,
-      importState,
+      importDatabase,
+      exportDatabase,
+      runSql,
     ]
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
-}
-
-function addDaysKey(key, n) {
-  const [y, m, d] = key.split('-').map(Number);
-  const date = new Date(y, m - 1, d + n);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-    date.getDate()
-  ).padStart(2, '0')}`;
 }
 
 export function useStore() {

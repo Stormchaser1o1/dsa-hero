@@ -9,14 +9,16 @@
     "lint": "oxlint",
     "smoke": "node test/smoke.mjs",
     "test:engine": "node test/engine.mjs",
-    "test": "npm run test:engine && npm run smoke",
+    "test:db": "node test/db.mjs",
+    "test": "npm run test:db && npm run test:engine && npm run smoke",
     "preview": "vite preview",
     "deploy": "npm run lint && npm run test && npm run build && node scripts/deploy.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.29.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "sql.js": "^1.14.1"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",

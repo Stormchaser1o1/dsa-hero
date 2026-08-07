@@ -2070,6 +2070,34 @@ textarea.input {
   margin-top: var(--sp-3);
 }
 
+/* ---------- SQL console ---------- */
+.sql-field {
+  margin-top: var(--sp-3);
+}
+.sql-input {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.65;
+  tab-size: 2;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+.sql-result {
+  margin-top: var(--sp-4);
+  border-top: 1px solid var(--line);
+  padding-top: var(--sp-3);
+}
+.sql-result .ptable td {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+.c-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------- Modal ---------- */
 .modal-backdrop {
   position: fixed;

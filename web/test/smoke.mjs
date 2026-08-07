@@ -123,7 +123,7 @@ const ROUTES = [
   ['/notes', 'page-title'],
   ['/resources', 'ptable'],
   ['/roadmap', 'stage-track'],
-  ['/settings', 'danger-zone'],
+  ['/settings', 'sql-input'],
 ];
 
 for (const [route, marker] of ROUTES) {
