@@ -1,0 +1,27 @@
+{
+  "name": "dsa-hero-web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "oxlint",
+    "smoke": "node test/smoke.mjs",
+    "preview": "vite preview",
+    "deploy": "npm run lint && npm run smoke && npm run build && node scripts/deploy.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "^1.29.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "jsdom": "^30.0.1",
+    "oxlint": "^1.75.0",
+    "vite": "^8.2.0"
+  }
+}
