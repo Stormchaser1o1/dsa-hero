@@ -8,8 +8,10 @@
     "build": "vite build",
     "lint": "oxlint",
     "smoke": "node test/smoke.mjs",
+    "test:engine": "node test/engine.mjs",
+    "test": "npm run test:engine && npm run smoke",
     "preview": "vite preview",
-    "deploy": "npm run lint && npm run smoke && npm run build && node scripts/deploy.mjs"
+    "deploy": "npm run lint && npm run test && npm run build && node scripts/deploy.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.29.0",

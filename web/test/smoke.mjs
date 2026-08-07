@@ -1,7 +1,7 @@
 /**
- * Render smoke test — mounts the real App in jsdom and fails on any
- * console error or thrown exception. Catches broken imports, bad hooks
- * and crashing effects that a successful bundle build would not.
+ * Render smoke test — mounts the real App in jsdom, walks every route, and
+ * fails on any console error or thrown exception. Catches broken imports,
+ * bad hooks and crashing effects that a successful bundle build would not.
  *
  * Run with: npm run smoke
  */
@@ -24,6 +24,11 @@ globalThis.localStorage = window.localStorage;
 globalThis.requestAnimationFrame = window.requestAnimationFrame.bind(window);
 globalThis.cancelAnimationFrame = window.cancelAnimationFrame.bind(window);
 globalThis.getComputedStyle = window.getComputedStyle.bind(window);
+// Deliberately NOT overriding performance / URL / Blob — Node already provides
+// them, and jsdom's Performance delegates back to the global, which recurses.
+
+// jsdom has no layout engine, so scrolling is a no-op here.
+window.scrollTo = () => {};
 
 // jsdom ships neither of these.
 window.matchMedia = (query) => ({
@@ -71,26 +76,68 @@ const vite = await createServer({
 const { default: React } = await import('react');
 const { createRoot } = await import('react-dom/client');
 const { default: App } = await vite.ssrLoadModule('/src/App.jsx');
+const { PROBLEMS } = await vite.ssrLoadModule('/src/data/problems.js');
+const { TOPICS } = await vite.ssrLoadModule('/src/data/topics.js');
+const { STAGES } = await vite.ssrLoadModule('/src/data/stages.js');
+const { PATTERNS } = await vite.ssrLoadModule('/src/data/patterns.js');
 
 const root = createRoot(document.getElementById('root'));
-await new Promise((resolve) => {
-  root.render(React.createElement(App));
-  setTimeout(resolve, 300);
-});
+const el = document.getElementById('root');
 
-const html = document.getElementById('root').innerHTML;
+async function renderRoute(hash) {
+  window.location.hash = hash;
+  window.dispatchEvent(new window.HashChangeEvent('hashchange'));
+  await new Promise((resolve) => {
+    root.render(React.createElement(App));
+    setTimeout(resolve, 120);
+  });
+  return el.innerHTML;
+}
 
-const checks = [
-  ['renders non-empty markup', html.length > 800],
-  ['renders the hero heading', html.includes('hero-title')],
-  ['renders every roadmap phase', (html.match(/class="[^"]*phase /g) || []).length === 14],
-  ['renders the stat grid', html.includes('stats-grid')],
-  ['renders the progress ring', html.includes('ring-value')],
-  ["renders today's set", html.includes('today-list')],
-  ['renders the difficulty split', html.includes('diff-list')],
-  ['renders the pattern list', html.includes('pattern-list')],
-  ['no NaN leaked into the DOM', !html.includes('NaN')],
+const checks = [];
+
+// ---- data integrity ---------------------------------------------------
+const ids = PROBLEMS.map((p) => p.id);
+checks.push(['problem ids are unique', new Set(ids).size === ids.length]);
+checks.push(['every problem has a known topic', PROBLEMS.every((p) => TOPICS.some((t) => t.id === p.topic))]);
+checks.push([
+  'every problem has a valid difficulty',
+  PROBLEMS.every((p) => ['easy', 'medium', 'hard'].includes(p.difficulty)),
+]);
+checks.push(['24 topics defined', TOPICS.length === 24]);
+checks.push(['9 stages defined', STAGES.length === 9]);
+checks.push([`problem bank is populated (${PROBLEMS.length})`, PROBLEMS.length >= 200]);
+checks.push([`patterns defined (${PATTERNS.length})`, PATTERNS.length >= 12]);
+
+// ---- routes render ----------------------------------------------------
+const ROUTES = [
+  ['/dashboard', 'welcome-title'],
+  ['/today', 'mission'],
+  ['/practice', 'pick-list'],
+  [`/practice/${PROBLEMS[20].id}`, 'timer-face'],
+  ['/problems', 'ptable'],
+  ['/progress', 'factor-list'],
+  ['/patterns', 'pattern-grid'],
+  ['/contests', 'round-grid'],
+  ['/achievements', 'badge-grid'],
+  ['/notes', 'page-title'],
+  ['/resources', 'ptable'],
+  ['/roadmap', 'stage-track'],
+  ['/settings', 'danger-zone'],
 ];
+
+for (const [route, marker] of ROUTES) {
+  const html = await renderRoute(`#${route}`);
+  checks.push([`${route} renders`, html.length > 500 && html.includes(marker)]);
+  if (html.includes('NaN')) checks.push([`${route} leaks NaN`, false]);
+  if (html.includes('undefined<') || html.includes('>undefined'))
+    checks.push([`${route} leaks undefined`, false]);
+}
+
+// The sidebar must survive every navigation.
+const last = el.innerHTML;
+checks.push(['sidebar is present', last.includes('nav-item')]);
+checks.push(['no NaN anywhere in the final render', !last.includes('NaN')]);
 
 let failed = 0;
 for (const [name, ok] of checks) {
@@ -100,11 +147,11 @@ for (const [name, ok] of checks) {
 
 if (problems.length) {
   console.log(`\nFAIL  ${problems.length} console error(s):`);
-  problems.forEach((p) => console.log(`  - ${p}`));
+  problems.slice(0, 12).forEach((p) => console.log(`  - ${p.slice(0, 400)}`));
   failed++;
 }
 
 await vite.close();
 
-console.log(failed ? `\n${failed} check(s) failed.` : '\nAll checks passed.');
+console.log(failed ? `\n${failed} check(s) failed.` : `\nAll ${checks.length} checks passed.`);
 process.exit(failed ? 1 : 0);
