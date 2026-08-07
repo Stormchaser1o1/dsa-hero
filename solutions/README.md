@@ -1,19 +1,19 @@
 # Solutions
 
 One Java file per problem, named after the problem in PascalCase, inside its
-phase folder:
+topic folder (numbered to match the 24-topic curriculum):
 
 ```
-solutions/phase-01-arrays/TwoSum.java
+solutions/03-arrays/TwoSum.java
 ```
 
-Each file is runnable on its own — a `main` that exercises the examples plus the
-edge cases, so you can `javac` + `java` it without LeetCode:
+Each file is runnable on its own — a `main` that exercises the examples plus
+the edge cases, so you can `javac` + `java` it without LeetCode:
 
 ```java
 /**
  * Two Sum — LeetCode 1 (easy)
- * Pattern: hashing
+ * Pattern: hash map complement
  * Time: O(n)   Space: O(n)
  */
 public class TwoSum {
@@ -49,7 +49,7 @@ public class TwoSum {
 Run it:
 
 ```bash
-cd "solutions/phase-01-arrays"
+cd "solutions/03-arrays"
 javac TwoSum.java && java TwoSum
 ```
 
