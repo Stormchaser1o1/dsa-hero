@@ -94,9 +94,16 @@ feed the weak-areas view and the planner.
 **246 problems across 24 topics** — 94 easy, 121 medium, 31 hard.
 
 224 of them link to LeetCode, which is where you run your code and where the
-test cases come from. The other **22 are local drills** with no online judge —
-all of Topics 1 and 2 plus three array basics. For those you write the code and
-its test harness yourself, in `solutions/`.
+test cases come from. The other **22 are local drills** with no online judge.
+For those you write the code and its test harness yourself, in `solutions/`:
+
+| Topic | Local drills |
+|-------|--------------|
+| 1 · Programming & Logic Building | 7 of 8 — every problem except FizzBuzz, which does link to LeetCode |
+| 2 · Time & Space Complexity | all 6 |
+| 3 · Arrays | 3 — largest element, second largest, check if sorted |
+| 13 · Recursion | 4 — factorial and sum to n, reverse a string recursively, merge sort, quick sort |
+| 23 · Mixed Interview Problems | 2 — both mock rounds |
 
 | # | Topic | Problems | # | Topic | Problems |
 |---|-------|----------|---|-------|----------|
