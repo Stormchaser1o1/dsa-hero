@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { todayKey } from '../lib/date';
 import * as repo from '../db/repo';
+import { mergeLogbook } from '../db/logbook';
 import {
   exec,
   exportBytes,
@@ -36,6 +37,10 @@ export function StoreProvider({ children }) {
       try {
         await openDatabase();
         const migrated = repo.migrateLegacyState();
+        // Attempts recorded in the repo, merged before the state is read so the
+        // first render already reflects them. Failures here are non-fatal.
+        const merged = await mergeLogbook();
+        if (merged > 0) await save();
         const loaded = repo.loadState();
         if (cancelled) return;
         setState(loaded);
