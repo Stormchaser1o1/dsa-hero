@@ -125,6 +125,35 @@ check('a miss resets to box 0', reset === 0, `box ${reset}`);
 
 db.close();
 
+// ---- base64 round-trip for the GitHub Contents API ---------------------
+// The API takes base64, and btoa is byte-oriented, so anything non-ASCII in a
+// note is where this silently corrupts or throws.
+{
+  const { encode, decode } = await (async () => {
+    const v = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' });
+    const mod = await v.ssrLoadModule('/src/db/github.js');
+    await v.close();
+    return mod;
+  })();
+
+  const samples = [
+    'plain ascii',
+    'em dash — and ellipsis …',
+    'O(n²) time, O(1) space',
+    'code with "quotes"\n\tand a tab\n',
+    '🎯 emoji survive too',
+    JSON.stringify(logbook, null, 2),
+  ];
+  for (const s of samples) {
+    const label = s.length > 28 ? `${s.slice(0, 28)}…` : s;
+    check(`base64 round-trip: ${JSON.stringify(label)}`, decode(encode(s)) === s);
+  }
+
+  // A payload large enough to have blown the stack before chunking.
+  const big = 'x'.repeat(300_000);
+  check('base64 handles a large payload', decode(encode(big)) === big);
+}
+
 let failed = 0;
 for (const [name, ok, detail] of checks) {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail && !ok ? ` — ${detail}` : ''}`);

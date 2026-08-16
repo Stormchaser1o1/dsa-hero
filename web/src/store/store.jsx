@@ -1,7 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { todayKey } from '../lib/date';
 import * as repo from '../db/repo';
-import { mergeLogbook } from '../db/logbook';
+import { mergeLogbook, pushLogbook } from '../db/logbook';
+import { isConfigured as isGithubConfigured } from '../db/github';
 import {
   exec,
   exportBytes,
@@ -29,6 +30,7 @@ function addDaysKey(key, n) {
 export function StoreProvider({ children }) {
   const [state, setState] = useState(DEFAULT_STATE);
   const [status, setStatus] = useState({ ready: false, error: null, migrated: false });
+  const [sync, setSync] = useState({ state: 'idle', at: null, error: null });
 
   // Open SQLite, lift any legacy localStorage data, then hydrate.
   useEffect(() => {
@@ -68,6 +70,31 @@ export function StoreProvider({ children }) {
     }
   }, []);
 
+  /**
+   * Commits the logbook to GitHub after a change to attempt data.
+   *
+   * Debounced, because editing a note fires on every keystroke and each push is
+   * a real commit — without this the history would be one commit per character.
+   * The trailing edge wins, so the commit carries the finished text.
+   */
+  const syncTimer = useRef(null);
+  const syncToRepo = useCallback((reason) => {
+    if (!isOpen() || !isGithubConfigured()) return;
+    clearTimeout(syncTimer.current);
+    setSync({ state: 'pending', at: null, error: null });
+    syncTimer.current = setTimeout(async () => {
+      try {
+        const res = await pushLogbook(reason);
+        setSync({ state: res.pushed ? 'ok' : 'idle', at: new Date().toISOString(), error: null });
+      } catch (err) {
+        console.warn('DSA HERO: logbook sync failed —', err?.message ?? err);
+        setSync({ state: 'error', at: null, error: err?.message ?? String(err) });
+      }
+    }, 2500);
+  }, []);
+
+  useEffect(() => () => clearTimeout(syncTimer.current), []);
+
   const logAttempt = useCallback(
     (entry) => {
       const stamp = entry.date ?? todayKey();
@@ -94,6 +121,7 @@ export function StoreProvider({ children }) {
         const revision = { box, due: addDaysKey(stamp, BOX_DAYS[box]) };
 
         persist(() => repo.insertAttempt(attempt, revision));
+        syncToRepo(`Log ${entry.problemId}`);
 
         return {
           ...prev,
@@ -102,7 +130,7 @@ export function StoreProvider({ children }) {
         };
       });
     },
-    [persist]
+    [persist, syncToRepo]
   );
 
   const setPlan = useCallback(
@@ -158,31 +186,34 @@ export function StoreProvider({ children }) {
   const updateNote = useCallback(
     (attemptId, notes) => {
       persist(() => repo.updateNote(attemptId, notes));
+      syncToRepo('Edit a note');
       setState((prev) => ({
         ...prev,
         attempts: prev.attempts.map((a) => (a.id === attemptId ? { ...a, notes } : a)),
       }));
     },
-    [persist]
+    [persist, syncToRepo]
   );
 
   const updateCode = useCallback(
     (attemptId, code) => {
       persist(() => repo.updateCode(attemptId, code));
+      syncToRepo('Edit a solution');
       setState((prev) => ({
         ...prev,
         attempts: prev.attempts.map((a) => (a.id === attemptId ? { ...a, code } : a)),
       }));
     },
-    [persist]
+    [persist, syncToRepo]
   );
 
   const deleteAttempt = useCallback(
     (attemptId) => {
       persist(() => repo.deleteAttempt(attemptId));
+      syncToRepo('Delete an attempt');
       setState((prev) => ({ ...prev, attempts: prev.attempts.filter((a) => a.id !== attemptId) }));
     },
-    [persist]
+    [persist, syncToRepo]
   );
 
   const resetAll = useCallback(async () => {
@@ -204,10 +235,25 @@ export function StoreProvider({ children }) {
   /** Read-only escape hatch for the SQL console. */
   const runSql = useCallback((sql) => exec(sql), []);
 
+  /** Commit now, skipping the debounce. Used by the Sync now button. */
+  const syncNow = useCallback(async (reason = 'Sync the logbook') => {
+    clearTimeout(syncTimer.current);
+    setSync({ state: 'pending', at: null, error: null });
+    try {
+      const res = await pushLogbook(reason);
+      setSync({ state: res.pushed ? 'ok' : 'idle', at: new Date().toISOString(), error: null });
+      return res;
+    } catch (err) {
+      setSync({ state: 'error', at: null, error: err?.message ?? String(err) });
+      throw err;
+    }
+  }, []);
+
   const value = useMemo(
     () => ({
       state,
       status,
+      sync,
       logAttempt,
       setPlan,
       setGoals,
@@ -220,10 +266,12 @@ export function StoreProvider({ children }) {
       importDatabase,
       exportDatabase,
       runSql,
+      syncNow,
     }),
     [
       state,
       status,
+      sync,
       logAttempt,
       setPlan,
       setGoals,
@@ -236,6 +284,7 @@ export function StoreProvider({ children }) {
       importDatabase,
       exportDatabase,
       runSql,
+      syncNow,
     ]
   );
 

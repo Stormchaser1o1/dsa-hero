@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import {
   AlertTriangle,
+  CloudUpload,
   Database,
   Download,
   Moon,
@@ -13,6 +14,140 @@ import {
 import { useStore } from '../store/store';
 import { EXAMPLE_QUERIES } from '../db/schema';
 import { CardHead, Empty, PageHead } from '../components/ui/Bits';
+import { clearConfig, readConfig, verify, writeConfig } from '../db/github';
+
+/**
+ * Two-way sync with the repository.
+ *
+ * Everything the app knows lives in IndexedDB, which one "clear site data" wipes
+ * out and which no other device can see. With a token saved here, every change
+ * is committed to logbook.json, and any browser holding the same token restores
+ * from it on load.
+ */
+function RepoSync() {
+  const { sync, syncNow } = useStore();
+  const [cfg, setCfg] = useState(readConfig);
+  const [token, setToken] = useState('');
+  const [note, setNote] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const connected = Boolean(cfg.token);
+
+  const save = async () => {
+    setBusy(true);
+    setNote(null);
+    try {
+      setCfg(writeConfig({ ...cfg, token: token || cfg.token }));
+      setNote({ tone: 'ok', text: await verify() });
+    } catch (err) {
+      setNote({ tone: 'bad', text: err.message });
+    } finally {
+      setToken('');
+      setBusy(false);
+    }
+  };
+
+  const pushNow = async () => {
+    setBusy(true);
+    setNote(null);
+    try {
+      const res = await syncNow('Sync from the browser');
+      setNote({ tone: 'ok', text: `Committed ${res.count} attempts to ${cfg.owner}/${cfg.repo}.` });
+    } catch (err) {
+      setNote({ tone: 'bad', text: err.message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const disconnect = () => {
+    clearConfig();
+    setCfg(readConfig());
+    setNote({ tone: 'ok', text: 'Token removed from this browser.' });
+  };
+
+  const statusText = {
+    idle: connected ? 'Connected' : 'Not connected',
+    pending: 'Committing…',
+    ok: 'Saved to the repo',
+    error: 'Sync failed',
+  }[sync.state];
+
+  return (
+    <section className="card card-lit pad">
+      <CardHead
+        title="Save to the repository"
+        sub="Commits your progress to GitHub so it outlives this browser"
+        icon={CloudUpload}
+        hue="var(--hue-2)"
+      />
+      <p className="prose">
+        Without this, everything lives only in this browser — clearing site data loses it, and no
+        other device can see it. With a token saved, every attempt you log is committed to{' '}
+        <code className="inline-code">{cfg.path}</code>, and any browser holding the same token
+        restores from it on load.
+      </p>
+      <p className="prose">
+        Create a{' '}
+        <a
+          href="https://github.com/settings/personal-access-tokens/new"
+          target="_blank"
+          rel="noreferrer"
+        >
+          fine-grained token
+        </a>{' '}
+        scoped to <strong>only</strong> the {cfg.owner}/{cfg.repo} repository, with{' '}
+        <strong>Contents: Read and write</strong>. It is stored in this browser and never written
+        into the SQLite database, so exported backups never contain it.
+      </p>
+
+      <div className="field-row">
+        <label className="field">
+          <span>{connected ? 'Replace token' : 'Fine-grained token'}</span>
+          <input
+            className="input"
+            type="password"
+            autoComplete="off"
+            placeholder={connected ? '•••••••• saved' : 'github_pat_…'}
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span>Branch</span>
+          <input
+            className="input"
+            value={cfg.branch}
+            onChange={(e) => setCfg({ ...cfg, branch: e.target.value })}
+          />
+        </label>
+      </div>
+
+      <div className="btn-row">
+        <button type="button" className="btn btn-ghost" onClick={save} disabled={busy || (!token && !connected)}>
+          <CloudUpload size={14} aria-hidden="true" />
+          {connected ? 'Save and verify' : 'Connect'}
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={pushNow} disabled={busy || !connected}>
+          <Play size={14} aria-hidden="true" />
+          Sync now
+        </button>
+        {connected && (
+          <button type="button" className="btn btn-ghost" onClick={disconnect} disabled={busy}>
+            Disconnect
+          </button>
+        )}
+      </div>
+
+      {note && <p className={`msg ${note.tone}`}>{note.text}</p>}
+      <p className="foot-note">
+        {statusText}
+        {sync.at && ` · last commit ${new Date(sync.at).toLocaleTimeString()}`}
+        {sync.error && ` · ${sync.error}`}
+      </p>
+    </section>
+  );
+}
 
 function SqlConsole() {
   const { runSql, status } = useStore();
@@ -271,6 +406,8 @@ export default function Settings({ stats, theme, onToggleTheme }) {
           {state.startedOn}
         </p>
       </section>
+
+      <RepoSync />
 
       <SqlConsole />
 
