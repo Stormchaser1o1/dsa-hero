@@ -30,6 +30,12 @@ public class StarTriangle {
     /** Print the triangle for the given number of rows. */
     static void printTriangle(int n) {
         // YOUR CODE HERE
+        for(int i = 1;i<=n;i++){
+            for(int j =1;j<=i;j++){
+                System.out.print("*");
+            }
+            System.out.println("");
+        }
     }
 
     // ---------------------------------------------------------------
