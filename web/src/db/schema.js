@@ -5,7 +5,7 @@
  * mirror the curriculum so the SQL console can join your attempts against
  * them — the whole point of using SQL here rather than a key/value store.
  */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const SCHEMA = `
 PRAGMA foreign_keys = ON;
@@ -45,6 +45,8 @@ CREATE TABLE IF NOT EXISTS attempt (
   tries           INTEGER NOT NULL DEFAULT 1,
   viewed_solution INTEGER NOT NULL DEFAULT 0,
   notes           TEXT    NOT NULL DEFAULT '',
+  code            TEXT    NOT NULL DEFAULT '',
+  language        TEXT    NOT NULL DEFAULT 'java',
   mode            TEXT    NOT NULL DEFAULT 'practice',
   created_at      TEXT    NOT NULL
 );
@@ -93,6 +95,20 @@ FROM   attempt a
 JOIN   problem p ON p.id = a.problem_id
 WHERE  a.outcome LIKE 'solved%';
 `;
+
+/**
+ * Columns added to existing tables after v1.
+ *
+ * `CREATE TABLE IF NOT EXISTS` silently skips a table that already exists, so
+ * a database created before these columns landed would never gain them. The
+ * migration runner adds any that are missing, which makes this list safe to
+ * apply to a fresh database too — there the columns already exist and every
+ * entry is a no-op.
+ */
+export const ADDED_COLUMNS = [
+  { table: 'attempt', column: 'code', ddl: "TEXT NOT NULL DEFAULT ''" },
+  { table: 'attempt', column: 'language', ddl: "TEXT NOT NULL DEFAULT 'java'" },
+];
 
 /** Handy starting points for the SQL console. */
 export const EXAMPLE_QUERIES = [

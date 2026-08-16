@@ -121,6 +121,7 @@ export default function Practice({ stats, param }) {
   const [tries, setTries] = useState(1);
   const [mistakes, setMistakes] = useState([]);
   const [notes, setNotes] = useState('');
+  const [code, setCode] = useState('');
   const [minutes, setMinutes] = useState('');
 
   useEffect(() => {
@@ -130,6 +131,7 @@ export default function Practice({ stats, param }) {
     setTries(1);
     setMistakes([]);
     setNotes('');
+    setCode('');
     setMinutes('');
     timer.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -169,6 +171,8 @@ export default function Practice({ stats, param }) {
       viewedSolution,
       mistakes,
       notes,
+      code,
+      language: 'java',
     });
     navigate('/today');
   };
@@ -378,6 +382,20 @@ export default function Practice({ stats, param }) {
                 ))}
               </div>
             </fieldset>
+
+            <label className="field">
+              <span>
+                Your solution <small>Java · saved with the attempt</small>
+              </span>
+              <textarea
+                className="input code-input"
+                rows={10}
+                spellCheck={false}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder={'class Solution {\n    // paste what you actually wrote\n}'}
+              />
+            </label>
 
             <label className="field">
               <span>Lesson learned</span>

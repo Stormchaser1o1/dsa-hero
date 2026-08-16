@@ -1048,6 +1048,17 @@
   line-height: 1.6;
   color: var(--fg-secondary);
 }
+/* The solution field on Practice, and the saved code on Notes. */
+.code-input {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  tab-size: 4;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+  resize: vertical;
+}
 .inline-code {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
@@ -1863,6 +1874,36 @@ textarea.input {
   display: flex;
   gap: var(--sp-2);
   margin-top: var(--sp-2);
+}
+.note-code {
+  margin-top: var(--sp-2);
+}
+.note-code > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  cursor: pointer;
+  padding: var(--sp-2) 0;
+  font-size: var(--text-xs);
+  color: var(--fg-faint);
+}
+.note-code > summary:hover {
+  color: var(--accent);
+}
+.note-code-add {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  padding: var(--sp-2) 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-size: var(--text-xs);
+  color: var(--fg-faint);
+}
+.note-code-add:hover {
+  color: var(--accent);
 }
 
 /* ---------- Resources ---------- */

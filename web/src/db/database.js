@@ -2,7 +2,7 @@ import initSqlJs from 'sql.js';
 import wasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
 import { PROBLEMS } from '../data/problems';
 import { TOPICS } from '../data/topics';
-import { SCHEMA, SCHEMA_VERSION } from './schema';
+import { ADDED_COLUMNS, SCHEMA, SCHEMA_VERSION } from './schema';
 import { clearFile, readFile, writeFile } from './idb';
 
 let db = null;
@@ -30,11 +30,23 @@ export async function openDatabase() {
   db = bytes ? new SQL.Database(new Uint8Array(bytes)) : new SQL.Database();
 
   db.run(SCHEMA);
+  migrate();
   db.run("INSERT OR REPLACE INTO meta(key, value) VALUES ('schema_version', ?)", [
     String(SCHEMA_VERSION),
   ]);
   seedCurriculum();
   return db;
+}
+
+/** Brings a database created by an older schema up to the current one. */
+function migrate() {
+  for (const { table, column, ddl } of ADDED_COLUMNS) {
+    const cols = db.exec(`PRAGMA table_info(${table})`)[0];
+    if (!cols) continue;
+    const names = cols.values.map((row) => row[cols.columns.indexOf('name')]);
+    if (names.includes(column)) continue;
+    db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+  }
 }
 
 /** The curriculum is code, not user data — rewrite it on every boot so
@@ -111,6 +123,7 @@ export async function importBytes(bytes) {
   db?.close();
   db = next;
   db.run(SCHEMA);
+  migrate();
   seedCurriculum();
   await save();
 }

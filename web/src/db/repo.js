@@ -50,6 +50,8 @@ export function loadState() {
     tries: r.tries,
     viewedSolution: Boolean(r.viewed_solution),
     notes: r.notes,
+    code: r.code ?? '',
+    language: r.language ?? 'java',
     mode: r.mode,
     mistakes: mistakesByAttempt.get(r.id) ?? [],
   }));
@@ -88,8 +90,8 @@ export function insertAttempt(attempt, revision) {
     run(
       `INSERT INTO attempt
          (id, problem_id, attempted_on, outcome, minutes, hints, tries,
-          viewed_solution, notes, mode, created_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+          viewed_solution, notes, code, language, mode, created_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         attempt.id,
         attempt.problemId,
@@ -100,6 +102,8 @@ export function insertAttempt(attempt, revision) {
         attempt.tries,
         attempt.viewedSolution ? 1 : 0,
         attempt.notes,
+        attempt.code ?? '',
+        attempt.language ?? 'java',
         attempt.mode,
         new Date().toISOString(),
       ]
@@ -122,6 +126,10 @@ export function insertAttempt(attempt, revision) {
 
 export function updateNote(attemptId, notes) {
   run('UPDATE attempt SET notes = ? WHERE id = ?', [notes, attemptId]);
+}
+
+export function updateCode(attemptId, code) {
+  run('UPDATE attempt SET code = ? WHERE id = ?', [code, attemptId]);
 }
 
 export function deleteAttempt(attemptId) {

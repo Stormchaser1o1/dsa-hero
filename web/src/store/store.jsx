@@ -78,6 +78,8 @@ export function StoreProvider({ children }) {
           viewedSolution: Boolean(entry.viewedSolution),
           mistakes: entry.mistakes ?? [],
           notes: entry.notes ?? '',
+          code: entry.code ?? '',
+          language: entry.language ?? 'java',
           mode: entry.mode ?? 'practice',
         };
 
@@ -159,6 +161,17 @@ export function StoreProvider({ children }) {
     [persist]
   );
 
+  const updateCode = useCallback(
+    (attemptId, code) => {
+      persist(() => repo.updateCode(attemptId, code));
+      setState((prev) => ({
+        ...prev,
+        attempts: prev.attempts.map((a) => (a.id === attemptId ? { ...a, code } : a)),
+      }));
+    },
+    [persist]
+  );
+
   const deleteAttempt = useCallback(
     (attemptId) => {
       persist(() => repo.deleteAttempt(attemptId));
@@ -195,6 +208,7 @@ export function StoreProvider({ children }) {
       setGoals,
       setProfile,
       updateNote,
+      updateCode,
       deleteAttempt,
       markAchievementsSeen,
       resetAll,
@@ -210,6 +224,7 @@ export function StoreProvider({ children }) {
       setGoals,
       setProfile,
       updateNote,
+      updateCode,
       deleteAttempt,
       markAchievementsSeen,
       resetAll,

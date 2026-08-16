@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Clock, NotebookPen, Search, Trash2 } from 'lucide-react';
+import { Clock, Code2, NotebookPen, Search, Trash2 } from 'lucide-react';
 import { useStore } from '../store/store';
 import { PROBLEM_BY_ID } from '../data/problems';
 import { TOPIC_BY_ID } from '../data/topics';
@@ -8,10 +8,12 @@ import { Link } from '../router';
 import { Diff, Empty, PageHead } from '../components/ui/Bits';
 
 export default function Notes() {
-  const { state, updateNote, deleteAttempt } = useStore();
+  const { state, updateNote, updateCode, deleteAttempt } = useStore();
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState(null);
   const [draft, setDraft] = useState('');
+  const [editingCode, setEditingCode] = useState(null);
+  const [codeDraft, setCodeDraft] = useState('');
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -24,6 +26,7 @@ export default function Notes() {
           !q ||
           a.problem.title.toLowerCase().includes(q) ||
           (a.notes ?? '').toLowerCase().includes(q) ||
+          (a.code ?? '').toLowerCase().includes(q) ||
           a.problem.pattern.toLowerCase().includes(q)
       );
   }, [state.attempts, query]);
@@ -36,6 +39,16 @@ export default function Notes() {
   const save = (id) => {
     updateNote(id, draft);
     setEditing(null);
+  };
+
+  const startEditCode = (a) => {
+    setEditingCode(a.id);
+    setCodeDraft(a.code ?? '');
+  };
+
+  const saveCode = (id) => {
+    updateCode(id, codeDraft);
+    setEditingCode(null);
   };
 
   return (
@@ -143,6 +156,45 @@ export default function Notes() {
                 ) : (
                   <button type="button" className="note-body" onClick={() => startEdit(a)}>
                     {a.notes ? a.notes : <span className="note-empty">Add a lesson learned…</span>}
+                  </button>
+                )}
+
+                {editingCode === a.id ? (
+                  <div className="note-edit">
+                    <textarea
+                      className="input code-input"
+                      rows={12}
+                      spellCheck={false}
+                      value={codeDraft}
+                      onChange={(e) => setCodeDraft(e.target.value)}
+                      aria-label="Solution code"
+                    />
+                    <div className="note-edit-actions">
+                      <button type="button" className="btn btn-primary btn-sm" onClick={() => saveCode(a.id)}>
+                        Save
+                      </button>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditingCode(null)}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : a.code ? (
+                  <details className="note-code">
+                    <summary>
+                      <Code2 size={12} strokeWidth={2.3} aria-hidden="true" />
+                      Solution — {(a.code.match(/\n/g)?.length ?? 0) + 1} lines
+                    </summary>
+                    <pre className="code">
+                      <code>{a.code}</code>
+                    </pre>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => startEditCode(a)}>
+                      Edit code
+                    </button>
+                  </details>
+                ) : (
+                  <button type="button" className="note-code-add" onClick={() => startEditCode(a)}>
+                    <Code2 size={12} strokeWidth={2.3} aria-hidden="true" />
+                    Add your solution
                   </button>
                 )}
               </article>

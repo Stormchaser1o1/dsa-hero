@@ -14,7 +14,7 @@ const initSqlJs = require('sql.js');
 const wasmBinary = readFileSync(require.resolve('sql.js/dist/sql-wasm.wasm'));
 
 const vite = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' });
-const { SCHEMA, EXAMPLE_QUERIES } = await vite.ssrLoadModule('/src/db/schema.js');
+const { SCHEMA, EXAMPLE_QUERIES, ADDED_COLUMNS } = await vite.ssrLoadModule('/src/db/schema.js');
 const { PROBLEMS } = await vite.ssrLoadModule('/src/data/problems.js');
 const { TOPICS } = await vite.ssrLoadModule('/src/data/topics.js');
 await vite.close();
@@ -138,6 +138,63 @@ check('export produces a SQLite file', bytes.length > 1000 && new TextDecoder().
 const reopened = new SQL.Database(bytes);
 check('reopened file keeps the attempts', reopened.exec('SELECT COUNT(*) FROM attempt')[0].values[0][0] === 3);
 check('reopened file keeps the notes', reopened.exec("SELECT notes FROM attempt WHERE id='a1'")[0].values[0][0] === 'Nested loops clicked.');
+
+// ---- migration: a v1 file must gain the new columns, keeping its data ---
+{
+  // A database exactly as schema v1 created it — no code/language columns.
+  const old = new SQL.Database();
+  old.run(`CREATE TABLE attempt (
+    id TEXT PRIMARY KEY, problem_id TEXT NOT NULL, attempted_on TEXT NOT NULL,
+    outcome TEXT NOT NULL, minutes INTEGER NOT NULL DEFAULT 0,
+    hints INTEGER NOT NULL DEFAULT 0, tries INTEGER NOT NULL DEFAULT 1,
+    viewed_solution INTEGER NOT NULL DEFAULT 0, notes TEXT NOT NULL DEFAULT '',
+    mode TEXT NOT NULL DEFAULT 'practice', created_at TEXT NOT NULL);`);
+  old.run(
+    "INSERT INTO attempt VALUES ('old1','logic-1','2026-08-16','solved-clean',12,0,1,0,'kept','practice','2026-08-16')"
+  );
+
+  // The boot sequence: schema first (a no-op for attempt), then the migration.
+  old.run(SCHEMA);
+  const before = old.exec('PRAGMA table_info(attempt)')[0].values.map((r) => r[1]);
+  check('v1 attempt table still lacks code after CREATE IF NOT EXISTS', !before.includes('code'));
+
+  const applyMigration = () => {
+    for (const { table, column, ddl } of ADDED_COLUMNS) {
+      const info = old.exec(`PRAGMA table_info(${table})`)[0];
+      if (!info) continue;
+      const names = info.values.map((r) => r[info.columns.indexOf('name')]);
+      if (!names.includes(column)) old.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+    }
+    return old.exec('PRAGMA table_info(attempt)')[0].values.map((r) => r[1]);
+  };
+
+  const after = applyMigration();
+  check('migration adds attempt.code', after.includes('code'));
+  check('migration adds attempt.language', after.includes('language'));
+
+  const row = old.exec("SELECT notes, code, language FROM attempt WHERE id='old1'")[0].values[0];
+  check('migration preserves existing rows', row[0] === 'kept');
+  check('migrated rows default code to empty', row[1] === '');
+  check('migrated rows default language to java', row[2] === 'java');
+  check('migration is idempotent', applyMigration().length === after.length);
+  old.close();
+}
+
+// ---- code round-trips through a fresh database -------------------------
+{
+  const fresh = new SQL.Database();
+  fresh.run(SCHEMA);
+  const java = 'class Solution {\n    void f() {\n        // tab\tand "quotes"\n    }\n}';
+  fresh.run(
+    `INSERT INTO attempt (id, problem_id, attempted_on, outcome, minutes, hints,
+       tries, viewed_solution, notes, code, language, mode, created_at)
+     VALUES ('c1','logic-1','2026-08-16','solved-clean',9,0,1,0,'n',?,'java','practice','2026-08-16')`,
+    [java]
+  );
+  const got = fresh.exec("SELECT code FROM attempt WHERE id='c1'")[0].values[0][0];
+  check('multi-line code survives a round-trip', got === java);
+  fresh.close();
+}
 
 report();
 
