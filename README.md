@@ -13,14 +13,16 @@ Started: **2026-08-07**
 
 **https://stormchaser1o1.github.io/dsa-hero/**
 
-A React + Vite single-page app with twelve sections. Your progress is stored in
-your browser (localStorage) and can be exported to a JSON backup from Settings.
+A React + Vite single-page app with twelve sections. Your progress lives in a
+real SQLite database running in your browser via WebAssembly (`sql.js`),
+persisted to IndexedDB. Settings exports it as a `.sqlite` file you can open in
+any SQLite tool.
 
 | Page | What it does |
 |------|--------------|
 | **Dashboard** | Level, streak, solved counts, difficulty split, practice calendar, today's plan, journey strip |
 | **Today's Plan** | The day's mission — 2 problems (4 at weekends), each with role, topic, pattern and reason |
-| **Practice** | The solving workspace: timer, 8-step thinking frame, 3-level hint ladder, attempt logger |
+| **Practice** | The solving workspace: timer, 8-step thinking frame, 3-level hint ladder, solution-code field, attempt logger |
 | **Problems** | All 246 problems — filter by topic, difficulty, status; search by title or pattern |
 | **Progress** | Interview readiness score with its eight weighted factors, activity heatmap, topic mastery, mistake profile, strong/weak topics |
 | **Patterns** | 16 core patterns — the recognition cue, the idea, the tell, a Java template, and every problem that uses it |
@@ -89,8 +91,12 @@ feed the weak-areas view and the planner.
 
 ## The curriculum
 
-**246 problems across 24 topics** — 40 easy, 76 medium, 18 hard among the
-LeetCode-linked set, plus local drills for logic building and complexity.
+**246 problems across 24 topics** — 94 easy, 121 medium, 31 hard.
+
+224 of them link to LeetCode, which is where you run your code and where the
+test cases come from. The other **22 are local drills** with no online judge —
+all of Topics 1 and 2 plus three array basics. For those you write the code and
+its test harness yourself, in `solutions/`.
 
 | # | Topic | Problems | # | Topic | Problems |
 |---|-------|----------|---|-------|----------|

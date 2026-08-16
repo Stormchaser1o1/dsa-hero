@@ -4,8 +4,8 @@
 > browser as you log attempts: https://stormchaser1o1.github.io/dsa-hero/
 >
 > This file is the human-readable summary — update it at milestones (a topic
-> completed, a stage unlocked), not after every problem. Export a JSON backup
-> from **Settings → Export backup** before clearing browser data.
+> completed, a stage unlocked), not after every problem. Export a backup
+> from **Settings → Export .sqlite** before clearing browser data.
 
 **Started:** 2026-08-07
 **Current stage:** DSA Beginner (stage 0 of 8)
