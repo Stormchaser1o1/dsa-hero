@@ -58,8 +58,15 @@ public class IsPrime {
 
     /** True when n is prime. */
     static boolean isPrime(int n) {
-        // YOUR CODE HERE
-        return false;
+        if(n<2){
+            return false;
+        }
+        for(int i =2;i<=Math.sqrt(n);i++){
+            if(n%i==0){
+                return false;
+            }
+        }
+        return true;
     }
 
     // ---------------------------------------------------------------
