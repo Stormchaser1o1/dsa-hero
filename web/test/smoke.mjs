@@ -134,6 +134,14 @@ for (const [route, marker] of ROUTES) {
     checks.push([`${route} leaks undefined`, false]);
 }
 
+// The practice calendar must show the date in each cell. It shipped without
+// them once, and nothing else in the suite would have noticed.
+{
+  const html = await renderRoute(`#/dashboard`);
+  const numbered = [...html.matchAll(/class="heat-num"[^>]*>(\d{1,2})</g)];
+  checks.push([`calendar cells show their date (${numbered.length} cells)`, numbered.length >= 28]);
+}
+
 // The sidebar must survive every navigation.
 const last = el.innerHTML;
 checks.push(['sidebar is present', last.includes('nav-item')]);

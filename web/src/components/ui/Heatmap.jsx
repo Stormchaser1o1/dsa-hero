@@ -38,6 +38,11 @@ export default function Heatmap({ year, month, activity, onSelect }) {
               onClick={onSelect ? () => onSelect(cell.key) : undefined}
               title={`${formatShort(cell.key)} — ${count} attempt${count === 1 ? '' : 's'}`}
             >
+              {/* The date itself. aria-hidden because the label below already
+                  reads the full date, and a bare number would double it up. */}
+              <span className="heat-num" aria-hidden="true">
+                {cell.date.getDate()}
+              </span>
               <span className="sr-only">
                 {formatShort(cell.key)}: {count} attempts
               </span>

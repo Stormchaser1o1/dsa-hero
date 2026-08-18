@@ -544,6 +544,29 @@
   background: var(--surface-3);
   border: 1px solid transparent;
   transition: transform var(--dur-fast) var(--ease-out);
+  display: grid;
+  place-items: center;
+}
+
+/* The date sits inside the cell, so it has to stay legible against every
+   level of fill -- muted on the pale end, on-accent once the green is solid. */
+.heat-num {
+  font-size: 10px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-secondary);
+  pointer-events: none;
+}
+.heat[data-level="0"] .heat-num {
+  color: var(--fg-muted);
+}
+.heat[data-level="3"] .heat-num,
+.heat[data-level="4"] .heat-num {
+  color: var(--fg-on-accent);
+  font-weight: 600;
+}
+.heat.is-today .heat-num {
+  font-weight: 700;
 }
 .heat:hover {
   transform: scale(1.15);
