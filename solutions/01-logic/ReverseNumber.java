@@ -58,8 +58,16 @@ public class ReverseNumber {
 
     /** n with its digits reversed, or 0 if the result will not fit in an int. */
     static int reverse(int n) {
-        // YOUR CODE HERE
-        return 0;
+        int  t = 0;
+        while(n!=0){
+            int mod = n%10;
+            if(t>Integer.MAX_VALUE/10 || t<Integer.MIN_VALUE/10){
+                return 0;
+            }
+            t = (t*10)+mod;
+            n=n/10;
+        }
+        return t;
     }
 
     // ---------------------------------------------------------------

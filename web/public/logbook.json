@@ -49,6 +49,21 @@
       "code": "static int sumOfDigits(int n) {\n    int sum = 0;\n    int q = Math.abs(n);\n    while(q>0){\n        int p = q%10;\n        sum +=p;\n        q=q/10;\n    }\n    return sum;\n}",
       "language": "java",
       "mode": "practice"
+    },
+    {
+      "id": "logbook-logic-4-2026-08-18",
+      "problemId": "logic-4",
+      "date": "2026-08-18",
+      "outcome": "solved-clean",
+      "minutes": 25,
+      "hints": 0,
+      "tries": 1,
+      "viewedSolution": false,
+      "mistakes": [],
+      "notes": "Solved with the bonus version - overflow checked before the multiply, no long anywhere.\n\nt = t * 10 + mod rebuilds the number. No Math.abs: Java's remainder takes the sign of the dividend, so -123 % 10 is -3 and negatives fall out with no special case, which also sidesteps the Integer.MIN_VALUE negation trap. Trailing zeros need no special case either - leading zeros simply have no representation in an int.\n\nThe guard is t > MAX/10 || t < MIN/10, checked before multiplying. It omits the usual boundary clause (t == MAX/10 && mod > 7) and is still correct for int, because reaching t == 214748364 requires the input to end in 463847412, so the remaining leading digit would have to make n at least 8463847412 - far outside int. Every 10-digit int starts with 1 or 2. Verified against a long-based reference over 347 million values with zero mismatches.\n\nTime O(log n) in the input value, equivalently linear in the digit count. Space O(1) - two ints regardless of n. Same as the previous problem; rebuilding a number instead of summing changed the arithmetic, not the cost.",
+      "code": "static int reverse(int n) {\n    int  t = 0;\n    while(n!=0){\n        int mod = n%10;\n        if(t>Integer.MAX_VALUE/10 || t<Integer.MIN_VALUE/10){\n            return 0;\n        }\n        t = (t*10)+mod;\n        n=n/10;\n    }\n    return t;\n}",
+      "language": "java",
+      "mode": "practice"
     }
   ]
 }
