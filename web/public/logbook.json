@@ -31,6 +31,24 @@
       "code": "public List<String> fizzBuzz(int n) {\n    List<String> list = new ArrayList<>();\n    for (int i = 1; i <= n; i++) {\n        if (i % 15 == 0) {\n            list.add(\"FizzBuzz\");\n        } else if (i % 3 == 0) {\n            list.add(\"Fizz\");\n        } else if (i % 5 == 0) {\n            list.add(\"Buzz\");\n        } else {\n            list.add(Integer.toString(i));\n        }\n    }\n    return list;\n}",
       "language": "java",
       "mode": "practice"
+    },
+    {
+      "id": "logbook-logic-3-2026-08-18",
+      "problemId": "logic-3",
+      "date": "2026-08-18",
+      "outcome": "solved-clean",
+      "minutes": 20,
+      "hints": 0,
+      "tries": 2,
+      "viewedSolution": false,
+      "mistakes": [
+        "logic",
+        "syntax"
+      ],
+      "notes": "Read the last digit with q % 10, add it, drop it with q / 10, stop when q hits zero. Math.abs covers negatives and n = 0 falls out for free because the condition is false before the first pass.\n\nTime O(log n) with respect to the input value n, which is the same statement as \"linear in the number of digits\" — digits in n = floor(log10(n)) + 1. n going from 9 to 1000000 is a factor of over 100000, while the work goes from 1 turn to 7: buying one more iteration costs multiplying n by ten. Space O(1) — three ints regardless of how large n is.\n\nThe tell: a loop that divides its variable by a constant each pass is logarithmic.\n\nSlips: first version added q instead of the extracted digit p, and a second version declared p twice (method scope and loop scope), which does not compile.",
+      "code": "static int sumOfDigits(int n) {\n    int sum = 0;\n    int q = Math.abs(n);\n    while(q>0){\n        int p = q%10;\n        sum +=p;\n        q=q/10;\n    }\n    return sum;\n}",
+      "language": "java",
+      "mode": "practice"
     }
   ]
 }
