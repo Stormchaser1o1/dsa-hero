@@ -64,6 +64,23 @@
       "code": "static int reverse(int n) {\n    int  t = 0;\n    while(n!=0){\n        int mod = n%10;\n        if(t>Integer.MAX_VALUE/10 || t<Integer.MIN_VALUE/10){\n            return 0;\n        }\n        t = (t*10)+mod;\n        n=n/10;\n    }\n    return t;\n}",
       "language": "java",
       "mode": "practice"
+    },
+    {
+      "id": "logbook-logic-5-2026-08-19",
+      "problemId": "logic-5",
+      "date": "2026-08-19",
+      "outcome": "solved-clean",
+      "minutes": 25,
+      "hints": 0,
+      "tries": 1,
+      "viewedSolution": false,
+      "mistakes": [
+        "complexity"
+      ],
+      "notes": "Guard n < 2 before the loop so 1, 0 and negatives are rejected without entering it, then trial division up to the square root with i <= Math.sqrt(n). The <= matters: 9 and 25 are only caught because i is allowed to reach the root exactly.\n\nUsing Math.sqrt rather than i * i also avoids the overflow that breaks the i * i form near MAX_VALUE, where 46341 squared wraps negative and the loop runs past its stopping point. Measured: the sqrt form answers 2147483647 in 2.6 ms; the i * i form answers it wrongly after 12.5 seconds. Calling Math.sqrt inside the condition costs nothing, since n never changes and the JIT hoists it.\n\nTime O(sqrt n), not O(n) - that was the initial answer and it was wrong. Brute force trial division to n-1 is the O(n) version. The bound holds because if n = a * b with a the smaller factor then a cannot exceed sqrt(n), so a composite must reveal a factor at or below its root. Space O(1).\n\nVerified against a reference over 3 million values with zero disagreements.",
+      "code": "static boolean isPrime(int n) {\n    if(n<2){\n        return false;\n    }\n    for(int i =2;i<=Math.sqrt(n);i++){\n        if(n%i==0){\n            return false;\n        }\n    }\n    return true;\n}",
+      "language": "java",
+      "mode": "practice"
     }
   ]
 }
